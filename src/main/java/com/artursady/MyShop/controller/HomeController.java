@@ -1,25 +1,52 @@
 package com.artursady.MyShop.controller;
 
 
+import com.artursady.MyShop.Cart;
 import com.artursady.MyShop.model.Item;
+import com.artursady.MyShop.repository.ItemRepository;
+import jakarta.servlet.http.HttpSession;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
+import javax.swing.text.html.Option;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Controller
 public class HomeController {
-    private List<Item> items = List.of(new Item("Ołówek", new BigDecimal("1.50"), "https://dlabiura24.pl/i/cms/000484.jpg"),
-            new Item("Długopis", new BigDecimal("2.10"), "https://ebiurowe.net/environment/cache/images/900_900_productGfx_29494/8ec091acb44978de25d21ba751fda65e.jpg"),
-            new Item("Pióro", new BigDecimal("9.50"), "https://www.luxuryproducts.pl/file/image/w800/h800/fit233568i0ad9c8dd139477229b600056c28249f47201526.jpg"));
+    private final ItemRepository itemRepository;
+    private final Cart cart;
+
+    @Autowired
+    public HomeController(ItemRepository itemRepository, Cart cart) {
+        this.itemRepository = itemRepository;
+        this.cart = cart;
+    }
 
     @GetMapping("/")
-    public String home(Model model) {
-        model.addAttribute("items", items);
+    public String home(Model model, HttpSession httpSession) {
+
+        model.addAttribute("items", itemRepository.findAll());
         return "home";
 
+    }
+
+    @GetMapping("/add/{itemId}")
+    public String addItemToCart(@PathVariable("itemId") Long itemId, Model model) {
+
+        Optional<Item> oItem = itemRepository.findById(itemId);
+        if (oItem.isPresent()) {
+            Item item = oItem.get();
+            cart.addItem(item);
+        }
+
+        model.addAttribute("items", itemRepository.findAll());
+        return "home";
     }
 
 }
