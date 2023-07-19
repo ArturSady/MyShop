@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Component
 @Scope(value = "session", proxyMode = ScopedProxyMode.TARGET_CLASS)
@@ -20,46 +21,35 @@ public class Cart {
     private BigDecimal sum = BigDecimal.ZERO;
 
     public void addItem(Item item){
-        boolean notFound = true;
-
-        for(CartItem ci : cartItems){
-            if (ci.getItem().getId().equals(item.getId())){
-                notFound = false;
-                ci.increaseCounter();
-                recalculatePriceAndCounter();
-                break;
-            }
-        }
-        if(notFound){
-        cartItems.add(new CartItem(item));
-            recalculatePriceAndCounter();
-
-        }
+        getCartByItem(item).ifPresentOrElse(
+                CartItem::increaseCounter,
+                () -> cartItems.add(new CartItem(item))
+        );
+        recalculatePriceAndCounter();
 
     }
     public void removeItem(Item item){
-        for(CartItem ci : cartItems){
-            if(ci.getItem().getId().equals(item.getId())){
-                ci.decreaseCounter();
-                if(ci.hasZeroItems()){
-                    cartItems.remove(ci);
-                }
-                recalculatePriceAndCounter();
-                break;
-
+        Optional <CartItem> oCartItem = getCartByItem(item);
+        if(oCartItem.isPresent()){
+            CartItem cartItem = oCartItem.get();
+            cartItem.decreaseCounter();
+            if(cartItem.hasZeroItems()){
+                cartItems.removeIf(i -> i.getItem().getId().equals(item.getId()));
             }
         }
+        recalculatePriceAndCounter();
     }
     private void recalculatePriceAndCounter(){
-        int tempCounter = 0;
-        BigDecimal tempPrice = BigDecimal.ZERO;
+        sum = cartItems.stream().map(CartItem :: getPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal :: add);
+        counter = cartItems.stream().mapToInt(CartItem :: getCounter)
+                .reduce(0, Integer :: sum);
 
-        for(CartItem ci : cartItems){
-            tempCounter += ci.getCounter();
-            tempPrice = tempPrice.add(ci.getPrice());
-        }
-        this.counter = tempCounter;
-        this.sum = tempPrice;
+    }
+    private Optional<CartItem> getCartByItem(Item item){
+        return cartItems.stream()
+                .filter(i -> i.getItem().getId().equals(item.getId()))
+                .findFirst();
     }
 
 }
